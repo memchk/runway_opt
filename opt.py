@@ -218,17 +218,19 @@ def main():
 
     all_runway_vars = list(itertools.chain.from_iterable(runway_vars))
     all_abs_error_vars = list(itertools.chain.from_iterable(abs_error_vars))
-    
 
-    west_der_vars = smoothness_constraint(model, [x[0] for x in smoothness_domain])
-    center_der_vars = smoothness_constraint(model, [x[1] for x in smoothness_domain])
-    east_der_vars = smoothness_constraint(model, [x[2] for x in smoothness_domain])
+    active_domain = runway_vars[:NORTH_BOUNDARY]
+    smooth_domain = runway_vars[:NORTH_BOUNDARY + UNSMOOTH_OVEREXTEND]
+
+    west_der_vars = smoothness_constraint(model, [x[0] for x in smooth_domain])
+    center_der_vars = smoothness_constraint(model, [x[1] for x in smooth_domain])
+    east_der_vars = smoothness_constraint(model, [x[2] for x in smooth_domain])
 
     # Setup Grade limits
     cw_grade_vars = []
     ce_grade_vars = []
 
-    for v in runway_vars[:NORTH_BOUNDARY]:
+    for v in active_domain:
         # Center to West
         cw_grade = grade_constraint(model, v[1], v[0])
         # Center to East
@@ -242,7 +244,7 @@ def main():
 
     # Constrain Centerline to only cut past Brad's House (going south) which is i <= 27
     # Also, Constrain edges to a maximum deviation of MAX_EDGE_DEVIATION
-    for i, (v,e,r) in enumerate(zip(runway_vars[:NORTH_BOUNDARY], abs_error_vars, runway_coords)):
+    for i, (v,e,r) in enumerate(zip(active_domain, abs_error_vars, runway_coords)):
         if NO_BACKBONE_INCREASE_RANGE[0] <= i <= NO_BACKBONE_INCREASE_RANGE[1]:
             model.Add(r[1][2] - v[1] >= 0)
         model.Add(e[0] <= MAX_EDGE_DEVIATION)
@@ -278,7 +280,7 @@ def main():
     solver = cp_model.CpSolver()
 
     solver.parameters.log_search_progress = True
-    solver.parameters.num_search_workers = 6
+    solver.parameters.num_search_workers = 12
     solver.parameters.relative_gap_limit = 0.02
     solver.parameters.max_time_in_seconds = 60
 
